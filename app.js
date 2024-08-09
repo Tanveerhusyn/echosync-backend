@@ -15,7 +15,7 @@ var connectdb = require("./database/db");
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "hbs");
 const corsOptions = {
-  origin: "http://localhost:3000", // Replace with your allowed origin
+  origin: "https://echosync.ai", // Replace with your allowed origin
   methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
   allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   credentials: true, // Allow cookies
