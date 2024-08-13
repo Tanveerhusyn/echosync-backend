@@ -1,14 +1,20 @@
 const mongoose = require("mongoose");
 
+const subscriptionSchema = new mongoose.Schema({
+  stripeCustomerId: { type: String, required: true },
+  subscriptionId: { type: String, required: true },
+  subscriptionStatus: { type: String, required: true },
+  subscriptionPlan: { type: String, required: true },
+  subscriptionPlanName: { type: String, required: true }, // New field for plan name
+  subscriptionCurrentPeriodEnd: { type: Date, required: true },
+});
 const userSchema = new mongoose.Schema(
   {
     companyName: {
       type: String,
-      required: true,
     },
     phoneNumber: {
       type: String,
-      required: true,
     },
     email: {
       type: String,
@@ -23,7 +29,6 @@ const userSchema = new mongoose.Schema(
     },
     aboutCompany: {
       type: String,
-      required: true,
     },
     agreeToPolicy: {
       type: Boolean,
@@ -38,6 +43,7 @@ const userSchema = new mongoose.Schema(
       refreshToken: String,
       expiryDate: Date,
     },
+    subscription: subscriptionSchema,
     isGoogleUser: {
       type: Boolean,
       default: false,

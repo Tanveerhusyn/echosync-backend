@@ -126,6 +126,42 @@ router.post("/complete-google-signup", async (req, res) => {
   }
 });
 
+router.post("/user-status", async (req, res) => {
+  const { email } = req.body;
+  console.log("STATUS", email);
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    let status = "complete";
+
+    // Check if business info is complete
+    if (!user.companyName || !user.phoneNumber || !user.aboutCompany) {
+      status = "incomplete";
+    }
+    // Check if Google Business Profile is connected
+    else if (!user.googleBusinessProfile.connected) {
+      status = "platform";
+    }
+    // Check if subscription is active
+    else if (!user.subscription) {
+      status = "subscription";
+    }
+
+    res.json({ status, user });
+  } catch (error) {
+    console.error("Error checking user status:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 // Login
 router.post("/login", async (req, res) => {
   try {

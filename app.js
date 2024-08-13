@@ -6,16 +6,18 @@ var logger = require("morgan");
 var cors = require("cors");
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 var app = express();
 
 // Connect to MongoDB
 var connectdb = require("./database/db");
+const { handleWebhookEvent } = require("./routes/payment");
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "hbs");
 const corsOptions = {
-  origin: "https://echosync.ai", // Replace with your allowed origin
+  origin: ["http://localhost:3000", "https://echosync.ai"], // Replace with your allowed origin
   methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
   allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   credentials: true, // Allow cookies
@@ -24,16 +26,18 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(logger("dev"));
+
+app.use("/payment", require("./routes/payment"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
 app.use(express.static(path.join(__dirname, "public")));
 connectdb();
 
 app.use("/", indexRouter);
 app.use("/users", usersRouter);
 app.use("/reviews", require("./routes/reviews"));
-app.use("/payment", require("./routes/payment"));
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

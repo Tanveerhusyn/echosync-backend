@@ -19,7 +19,7 @@ const { OAuth2Client } = require("google-auth-library");
 const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  `https://echosync.ai/platform` // Adjust this URL as needed
+  `https://admin.echosync.ai/platform` // Adjust this URL as needed
 );
 
 const usedCodes = new Set();
@@ -101,7 +101,7 @@ router.post("/google-business-callback", async (req, res) => {
       code: code,
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: "https://echosync.ai/platform",
+      redirect_uri: "http://localhost:3000/platform",
       grant_type: "authorization_code",
     };
 
@@ -306,6 +306,50 @@ Based on this, write a response as the business owner:`;
   }
 });
 
+router.post("/generate-manual", async function (req, res, next) {
+  try {
+    const { user_review } = req.body;
+
+    const responsePrompt = `As the owner of a business, write friendly response to this Google Business review. Follow these guidelines:
+
+1. Keep it short - aim for 2-3 sentences max.
+2. Use a casual, conversational tone as if speaking directly to the customer.
+3. Personalize the response by mentioning a specific point from their review.
+4. For positive reviews, express genuine appreciation.
+5. For negative reviews, apologize sincerely and offer to address concerns offline.
+6. Avoid overly formal language or lengthy explanations.
+7. End with a simple, warm closing like "Thanks!" or "Cheers!".
+9. Avoid using emojis.
+10. Do not include placeholders like [Your Name] or [Business Owner].
+
+
+
+Customer Review: "${user_review}"
+
+ 
+Based on this, write a response as the business owner:`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: responsePrompt },
+        { role: "user", content: "Generate a response to the review." },
+      ],
+      temperature: 0.7,
+      max_tokens: 250,
+    });
+
+    res.json({
+      response: completion.choices[0].message.content,
+    });
+  } catch (error) {
+    console.error("Error generating response:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to generate response", details: error.message });
+  }
+});
+
 async function getAccountAndLocation(auth) {
   const mybusinessaccountmanagement = google.mybusinessaccountmanagement({
     version: "v1",
@@ -423,6 +467,25 @@ const BUSINESS_INFORMATION_API =
   "https://mybusinessbusinessinformation.googleapis.com/v1";
 const MY_BUSINESS_API = "https://mybusiness.googleapis.com/v4";
 
+async function getAccountTest(accessToken) {
+  try {
+    const response = await axios.get(`${ACCOUNT_MANAGEMENT_API}/accounts`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      params: { pageSize: 10 },
+    });
+    console.log("Accounts response:", JSON.stringify(response.data, null, 2));
+    if (response.data.accounts && response.data.accounts.length > 0) {
+      return response.data.accounts[0].name;
+    }
+    throw new Error("No accounts found");
+  } catch (error) {
+    console.error(
+      "Error fetching Account:",
+      error.response ? error.response.data : error.message
+    );
+    return error.response;
+  }
+}
 async function getAccountId(accessToken) {
   try {
     const response = await axios.get(`${ACCOUNT_MANAGEMENT_API}/accounts`, {
@@ -436,7 +499,7 @@ async function getAccountId(accessToken) {
     throw new Error("No accounts found");
   } catch (error) {
     console.error(
-      "Error fetching account:",
+      "Error fetching Account:",
       error.response ? error.response.data : error.message
     );
     throw error;
@@ -516,10 +579,48 @@ function parseUnusualDate(dateInput) {
 function formatDate(date) {
   return date.toISOString();
 }
+function parseUnusualDate(dateInput) {
+  // Convert input to string if it's not already
+  const dateString = String(dateInput);
 
-function isTokenExpired(expiryDate) {
+  console.log("Parsing date string:", dateString);
+
+  // Check if the date is in the unusual format
+  if (dateString.startsWith("+")) {
+    // Extract year, month, day, hour, minute, second
+    const match = dateString.match(
+      /\+(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/
+    );
+    if (match) {
+      const [, year, month, day, hour, minute, second] = match;
+      // JavaScript can't handle years beyond 275,760, so we'll cap it
+      const cappedYear = Math.min(parseInt(year), 275760);
+      return new Date(
+        Date.UTC(cappedYear, month - 1, day, hour, minute, second)
+      );
+    }
+  }
+
+  // If it's not in the unusual format, try parsing it as a regular date
+  const parsedDate = new Date(dateString);
+  if (isNaN(parsedDate.getTime())) {
+    console.error("Invalid date format:", dateString);
+    return null;
+  }
+  return parsedDate;
+}
+
+function isTokenExpired(expiryDate, currentTime = new Date()) {
   const parsedExpiryDate = parseUnusualDate(expiryDate);
-  return parsedExpiryDate <= new Date();
+  console.log("Parsed expiry date:", parsedExpiryDate);
+  console.log("Current time:", currentTime);
+
+  if (!parsedExpiryDate || isNaN(parsedExpiryDate.getTime())) {
+    console.error("Failed to parse expiry date:", expiryDate);
+    return true; // Assume expired if we can't parse the date
+  }
+
+  return currentTime >= parsedExpiryDate;
 }
 
 async function refreshGoogleToken(user) {
@@ -548,7 +649,11 @@ async function refreshGoogleToken(user) {
 }
 
 async function getValidAccessToken(user) {
-  if (isTokenExpired(user.googleBusinessProfile.expiryDate)) {
+  const getTestAccount = await getAccountTest(
+    user.googleBusinessProfile.accessToken
+  );
+  console.log("Test account response:", getTestAccount);
+  if (getTestAccount.status === 401) {
     console.log("Token expired, refreshing...");
     const refreshedCredentials = await refreshGoogleToken(user);
     console.log(
@@ -579,8 +684,8 @@ router.get("/reviews", async (req, res) => {
 
     const accessToken = await getValidAccessToken(user);
 
-    console.log("Access token:", accessToken);
     const accountName = await getAccountId(accessToken);
+    console.log("ACCOUT", accountName);
     const locations = await getLocations(accessToken, accountName);
 
     if (locations.length === 0) {
