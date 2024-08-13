@@ -17,7 +17,7 @@ const { handleWebhookEvent } = require("./routes/payment");
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "hbs");
 const corsOptions = {
-  origin: ["http://localhost:3000", "https://echosync.ai"], // Replace with your allowed origin
+  origin: ["http://localhost:3000", "https://admin.echosync.ai"], // Replace with your allowed origin
   methods: ["GET", "POST", "PUT", "DELETE"], // Allowed methods
   allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   credentials: true, // Allow cookies
