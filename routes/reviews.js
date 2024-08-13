@@ -701,13 +701,29 @@ router.get("/reviews", async (req, res) => {
     });
 
     const reviewsResults = await Promise.all(reviewsPromises);
+    let totalReviews = 0;
+    let totalResponses = 0;
 
+    reviewsResults.forEach((result) => {
+      if (result.reviews) {
+        totalReviews += result.reviews.length;
+        totalResponses += result.reviews.filter(
+          (review) => review.reviewReply
+        ).length;
+      }
+    });
+
+    const responseRate =
+      totalReviews > 0 ? (totalResponses / totalReviews) * 100 : 0;
     const response = {
       account: accountName,
       locations: locations.map((location, index) => ({
         name: location.name,
         reviews: reviewsResults[index],
       })),
+      totalReviews,
+      totalResponses,
+      responseRate: responseRate.toFixed(2),
     };
 
     res.json(response);
