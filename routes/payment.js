@@ -32,8 +32,8 @@ router.post("/create-checkout-session", express.json(), async (req, res) => {
   }
 });
 
-const endpointSecret =
-  "whsec_21bbad6871b325381a6b6e6b9ad6c57d798fb06efad28067795983c7177302ae";
+const endpointSecret = "whsec_bYeI8KRxPUt9BileuAWl9Fk802PFZhXd";
+// "whsec_21bbad6871b325381a6b6e6b9ad6c57d798fb06efad28067795983c7177302ae";
 
 router.post(
   "/webhook",
