@@ -64,10 +64,10 @@ router.post(
 );
 
 async function handleWebhookEvent(event) {
-  console.log("EVENT", event);
   switch (event.type) {
     case "checkout.session.completed":
       const session = event.data.object;
+      console.log("Session", session);
       if (session.mode === "subscription") {
         await handleSubscriptionCreated(session);
       }
