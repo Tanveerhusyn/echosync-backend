@@ -105,10 +105,14 @@ async function handleSubscriptionCreated(session) {
       return;
     }
 
+    const product = await stripe.products.retrieve(subscription.plan.product);
+    const subscriptionPlanName = product.name;
+
     user.subscription = {
       stripeCustomerId: customerId,
       subscriptionId: subscriptionId,
       subscriptionStatus: subscription.status,
+      subscriptionPlanName: subscriptionPlanName,
       subscriptionPlan: subscription.items.data[0].price.id,
       subscriptionCurrentPeriodEnd: new Date(
         subscription.current_period_end * 1000
