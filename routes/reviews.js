@@ -512,7 +512,7 @@ async function getLocations(accessToken, accountName) {
       `${BUSINESS_INFORMATION_API}/${accountName}/locations`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
-        params: { pageSize: 10, readMask: "name" },
+        params: { pageSize: 10, readMask: "name,title,storeCode" },
       }
     );
     console.log("Locations response:", JSON.stringify(response.data, null, 2));
@@ -719,6 +719,7 @@ router.get("/reviews", async (req, res) => {
       account: accountName,
       locations: locations.map((location, index) => ({
         name: location.name,
+        title: location.title,
         reviews: reviewsResults[index],
       })),
       totalReviews,
