@@ -43,6 +43,10 @@ const userSchema = new mongoose.Schema(
       refreshToken: String,
       expiryDate: Date,
     },
+    selectedLocations: {
+      type: Array,
+      default: [],
+    },
     subscription: subscriptionSchema,
     isGoogleUser: {
       type: Boolean,

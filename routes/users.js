@@ -154,6 +154,8 @@ router.post("/user-status", async (req, res) => {
     // Check if subscription is active
     else if (!user.subscription) {
       status = "subscription";
+    } else if (user.selectedLocations.length === 0) {
+      status = "location";
     }
 
     res.json({ status, user });

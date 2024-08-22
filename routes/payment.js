@@ -5,12 +5,16 @@ const User = require("../models/user"); // Adjust the path as needed
 
 // Endpoint to create a Stripe checkout session
 router.post("/create-checkout-session", express.json(), async (req, res) => {
-  const { priceId } = req.body;
+  const { priceId, email, name } = req.body;
 
   if (!priceId) {
     return res.status(400).json({ error: "Price ID is required" });
   }
 
+  const customer = await stripe.customers.create({
+    email: email,
+    name: name,
+  });
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -21,8 +25,17 @@ router.post("/create-checkout-session", express.json(), async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/subscription`,
+      subscription_data: {
+        trial_settings: {
+          end_behavior: {
+            missing_payment_method: "cancel",
+          },
+        },
+        trial_period_days: 7,
+      },
+      success_url: `${process.env.FRONTEND_URL}/onboarding?session_id={CHECKOUT_SESSION_ID}&&email=${email}&&name=${name}`,
+      cancel_url: `${process.env.FRONTEND_URL}/onboardidng`,
+      customer: customer.id,
     });
 
     res.json({ sessionId: session.id });

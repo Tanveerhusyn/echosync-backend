@@ -19,7 +19,7 @@ const { OAuth2Client } = require("google-auth-library");
 const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  `https://admin.echosync.ai/platform` // Adjust this URL as needed
+  `https://admin.echosync.ai/onboarding` // Adjust this URL as needed
 );
 
 const usedCodes = new Set();
@@ -33,6 +33,9 @@ router.get("/connect-google-business", (req, res) => {
     scope: scopes,
     prompt: "consent",
   });
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
 
   res.json({ authorizationUrl });
 });
@@ -101,7 +104,7 @@ router.post("/google-business-callback", async (req, res) => {
       code: code,
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: "https://admin.echosync.ai/platform",
+      redirect_uri: "https://admin.echosync.ai/onboarding",
       grant_type: "authorization_code",
     };
 
@@ -389,12 +392,9 @@ async function getAccountAndLocation(auth) {
     const locationsResponse =
       await mybusinessbusinessinformation.accounts.locations.list({
         parent: accountName,
-        readMask: "name,title",
+        readMask: "name,title,profile,serviceArea	",
       });
-    console.log(
-      "Locations response:",
-      JSON.stringify(locationsResponse.data, null, 2)
-    );
+    console.log("Locations response:", JSON.stringify(locationsResponse.data));
 
     if (
       !locationsResponse.data.locations ||
@@ -512,7 +512,11 @@ async function getLocations(accessToken, accountName) {
       `${BUSINESS_INFORMATION_API}/${accountName}/locations`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
-        params: { pageSize: 10, readMask: "name,title,storeCode" },
+
+        params: {
+          pageSize: 10,
+          readMask: "name,title,storeCode,profile",
+        },
       }
     );
     console.log("Locations response:", JSON.stringify(response.data, null, 2));
@@ -665,6 +669,105 @@ async function getValidAccessToken(user) {
   return user.googleBusinessProfile.accessToken;
 }
 
+router.get("/get-locations", async (req, res) => {
+  let { email } = req.query;
+
+  const user = await User.findOne({
+    email: email,
+  });
+
+  console.log("User:", user, email);
+
+  try {
+    const accessToken = await getValidAccessToken(user);
+
+    const accountName = await getAccountId(accessToken);
+    console.log("ACCOUT", accountName);
+    const locations = await getLocations(accessToken, accountName);
+
+    if (locations.length === 0) {
+      return res.status(404).json({ error: "No locations found" });
+    }
+
+    res.json(locations);
+  } catch (error) {
+    console.error(
+      "Error:",
+      error.response ? error.response.data : error.message
+    );
+    res.status(error.response ? error.response.status : 500).json({
+      error: "An error occurred",
+      details: error.response ? error.response.data : error.message,
+    });
+  }
+});
+
+router.post("/selected-location", async (req, res) => {
+  let { email, locations } = req.body;
+
+  const user = await User.findOne({
+    email: email,
+  });
+
+  console.log("User:", user, email);
+
+  try {
+    //update user with selected location
+    const updated = await User.findOneAndUpdate(
+      { email: email },
+      {
+        selectedLocations: locations,
+      },
+      {
+        new: true,
+      }
+    );
+
+    res.json(updated);
+  } catch (error) {
+    console.error(
+      "Error:",
+      error.response ? error.response.data : error.message
+    );
+    res.status(error.response ? error.response.status : 500).json({
+      error: "An error occurred",
+      details: error.response ? error.response.data : error.message,
+    });
+  }
+});
+
+router.get("/reviews-for-one-location", async (req, res) => {
+  let { email } = req.query;
+
+  const user = await User.findOne({
+    email: email,
+  });
+
+  console.log("User:", user, email);
+
+  try {
+    const accessToken = await getValidAccessToken(user);
+    const accountName = await getAccountId(accessToken);
+    const locationName = user.googleBusinessProfile.locationName;
+    const parent = `${accountName}/${location.name
+      .split("/")
+      .slice(-2)
+      .join("/")}`;
+    const reviews = await getReviews(accessToken, locationName);
+
+    res.json(reviews);
+  } catch (error) {
+    console.error(
+      "Error:",
+      error.response ? error.response.data : error.message
+    );
+    res.status(error.response ? error.response.status : 500).json({
+      error: "An error occurred",
+      details: error.response ? error.response.data : error.message,
+    });
+  }
+});
+
 router.get("/reviews", async (req, res) => {
   let { email } = req.query;
 
@@ -686,19 +789,31 @@ router.get("/reviews", async (req, res) => {
 
     const accountName = await getAccountId(accessToken);
     console.log("ACCOUT", accountName);
-    const locations = await getLocations(accessToken, accountName);
 
-    if (locations.length === 0) {
-      return res.status(404).json({ error: "No locations found" });
-    }
+    const locations = user.selectedLocations;
 
-    const reviewsPromises = locations.map((location) => {
+    console.log("LOCATIONS", locations);
+    const reviewsPromises = user.selectedLocations.map((location) => {
       const parent = `${accountName}/${location.name
         .split("/")
         .slice(-2)
         .join("/")}`;
       return getReviews(accessToken, parent);
     });
+    console.log("LOCATIONS", reviewsPromises);
+    // const locations = await getLocations(accessToken, accountName);
+
+    // if (locations.length === 0) {
+    //   return res.status(404).json({ error: "No locations found" });
+    // }
+
+    // const reviewsPromises = locations.map((location) => {
+    //   const parent = `${accountName}/${location.name
+    //     .split("/")
+    //     .slice(-2)
+    //     .join("/")}`;
+    //   return getReviews(accessToken, parent);
+    // });
 
     const reviewsResults = await Promise.all(reviewsPromises);
     let totalReviews = 0;
