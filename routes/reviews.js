@@ -836,7 +836,10 @@ router.get("/reviews", async (req, res) => {
         name: location.name,
         title: location.title,
         reviews: reviewsResults[index],
-        responseRate: responseRate.toFixed(2),
+        responseRate: reviewsResults[index]
+          ? reviewsResults[index].reviews.filter((review) => review.reviewReply)
+              .length
+          : 0,
       })),
       totalReviews,
       totalResponses,
