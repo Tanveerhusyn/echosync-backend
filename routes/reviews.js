@@ -788,7 +788,7 @@ router.get("/reviews", async (req, res) => {
     const accessToken = await getValidAccessToken(user);
 
     const accountName = await getAccountId(accessToken);
-    console.log("ACCOUT", accountName);
+    console.log("ACCOUNT", accountName);
 
     const locations = user.selectedLocations;
 
@@ -801,49 +801,41 @@ router.get("/reviews", async (req, res) => {
       return getReviews(accessToken, parent);
     });
     console.log("LOCATIONS", reviewsPromises);
-    // const locations = await getLocations(accessToken, accountName);
-
-    // if (locations.length === 0) {
-    //   return res.status(404).json({ error: "No locations found" });
-    // }
-
-    // const reviewsPromises = locations.map((location) => {
-    //   const parent = `${accountName}/${location.name
-    //     .split("/")
-    //     .slice(-2)
-    //     .join("/")}`;
-    //   return getReviews(accessToken, parent);
-    // });
 
     const reviewsResults = await Promise.all(reviewsPromises);
     let totalReviews = 0;
     let totalResponses = 0;
 
-    reviewsResults.forEach((result) => {
-      if (result.reviews) {
-        totalReviews += result.reviews.length;
-        totalResponses += result.reviews.filter(
-          (review) => review.reviewReply
-        ).length;
-      }
-    });
-
-    const responseRate =
-      totalReviews > 0 ? (totalResponses / totalReviews) * 100 : 0;
     const response = {
       account: accountName,
-      locations: locations.map((location, index) => ({
-        name: location.name,
-        title: location.title,
-        reviews: reviewsResults[index],
-        responseRate: reviewsResults[index]
-          ? reviewsResults[index].reviews.filter((review) => review.reviewReply)
-              .length
-          : 0,
-      })),
+      locations: locations.map((location, index) => {
+        const locationReviews = reviewsResults[index].reviews || [];
+        const locationTotalReviews = locationReviews.length;
+        const locationResponses = locationReviews.filter(
+          (review) => review.reviewReply
+        ).length;
+
+        totalReviews += locationTotalReviews;
+        totalResponses += locationResponses;
+
+        const locationResponseRate =
+          locationTotalReviews > 0
+            ? (locationResponses / locationTotalReviews) * 100
+            : 0;
+
+        return {
+          name: location.name,
+          title: location.title,
+          reviews: reviewsResults[index],
+          responseRate: locationResponseRate.toFixed(2),
+        };
+      }),
       totalReviews,
       totalResponses,
-      responseRate: responseRate.toFixed(2),
+      responseRate:
+        totalReviews > 0
+          ? ((totalResponses / totalReviews) * 100).toFixed(2)
+          : "0.00",
     };
 
     res.json(response);
