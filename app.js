@@ -7,6 +7,10 @@ var cors = require("cors");
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const contactRoutes = require("./routes/contactRoutes");
+const dripCampaignRoutes = require("./routes/dripCampaignRoutes");
+const contactCampaignRoutes = require("./routes/contactCampaignRoutes");
+const twilioConfig = require("./config/twilio");
 
 var app = express();
 
@@ -38,6 +42,17 @@ connectdb();
 app.use("/", indexRouter);
 app.use("/users", usersRouter);
 app.use("/reviews", require("./routes/reviews"));
+app.use("/api/contacts", contactRoutes);
+app.use("/api/drip-campaigns", dripCampaignRoutes);
+
+app.use("/api/contact-campaigns", contactCampaignRoutes);
+
+// Check Twilio configuration
+if (twilioConfig.isConfigured) {
+  console.log("Twilio is configured and ready to use");
+} else {
+  console.warn("Twilio is not configured. SMS functionality will be disabled.");
+}
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

@@ -5,9 +5,10 @@ const subscriptionSchema = new mongoose.Schema({
   subscriptionId: { type: String, required: true },
   subscriptionStatus: { type: String, required: true },
   subscriptionPlan: { type: String, required: true },
-  subscriptionPlanName: { type: String, required: true }, // New field for plan name
+  subscriptionPlanName: { type: String, required: true },
   subscriptionCurrentPeriodEnd: { type: Date, required: true },
 });
+
 const userSchema = new mongoose.Schema(
   {
     companyName: {

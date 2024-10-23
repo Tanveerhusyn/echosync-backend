@@ -19,7 +19,7 @@ const { OAuth2Client } = require("google-auth-library");
 const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  `https://admin.echosync.ai/onboarding` // Adjust this URL as needed
+  `http://localhost:5000/onboarding` // Adjust this URL as needed
 );
 
 const usedCodes = new Set();
@@ -104,7 +104,7 @@ router.post("/google-business-callback", async (req, res) => {
       code: code,
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: "https://admin.echosync.ai/onboarding",
+      redirect_uri: "http://localhost:5000/onboarding",
       grant_type: "authorization_code",
     };
 
